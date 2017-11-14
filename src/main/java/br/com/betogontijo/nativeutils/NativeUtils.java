@@ -29,10 +29,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.nio.file.AccessDeniedException;
-import java.nio.file.FileSystemNotFoundException;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
-import java.nio.file.ProviderNotFoundException;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 
@@ -129,51 +126,33 @@ public class NativeUtils {
 		// get array of paths
 		final String[] paths = (String[]) usrPathsField.get(null);
 
+		boolean alreadyInPath = false;
+
 		// check if the path to add is already present
 		for (String string : paths) {
 			if (string.equals(temporaryDir.getAbsolutePath())) {
+				alreadyInPath = true;
 				break;
 			}
 		}
 
-		// add the new path
-		final String[] newPaths = Arrays.copyOf(paths, paths.length + 1);
-		newPaths[newPaths.length - 1] = temporaryDir.getAbsolutePath();
-		usrPathsField.set(null, newPaths);
+		if (!alreadyInPath) {
+			// add the new path
+			final String[] newPaths = Arrays.copyOf(paths, paths.length + 1);
+			newPaths[newPaths.length - 1] = temporaryDir.getAbsolutePath();
+			usrPathsField.set(null, newPaths);
+		}
 
-		try {
-			if (filename.endsWith(".dll")) {
-				System.loadLibrary(filename.substring(0, filename.length() - 4));
-			} else if (filename.endsWith(".so")) {
-				System.loadLibrary(filename.substring(0, filename.length() - 3));
-			}
-		} finally {
-			if (isPosixCompliant()) {
-				// Assume POSIX compliant file system, can be deleted after
-				// loading
-				temp.delete();
-			} else {
-				// Assume non-POSIX, and don't delete until last file descriptor
-				// closed
-				temp.deleteOnExit();
-			}
+		if (filename.contains(".dll")) {
+			System.loadLibrary(filename.substring(0, filename.length() - 4));
+		} else if (filename.contains(".so")) {
+			System.load(temporaryDir + "/" + filename);
 		}
 	}
 
-	private static boolean isPosixCompliant() {
-		try {
-			if (FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
-				return true;
-			}
-			return false;
-		} catch (FileSystemNotFoundException | ProviderNotFoundException | SecurityException e) {
-			return false;
-		}
-	}
-
-	private static File createTempDirectory(String prefix) throws IOException {
+	private static File createTempDirectory(String dirName) throws IOException {
 		String tempDir = System.getProperty("java.io.tmpdir");
-		File generatedDir = new File(tempDir, prefix + System.nanoTime());
+		File generatedDir = new File(tempDir, dirName);
 
 		if (!generatedDir.mkdir())
 			throw new IOException("Failed to create temp directory " + generatedDir.getName());
