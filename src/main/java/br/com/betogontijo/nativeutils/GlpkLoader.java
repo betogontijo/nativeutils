@@ -23,11 +23,8 @@ public class GlpkLoader {
 			for (Resource resource : resolver.getResources("classpath*:" + prefix + "*")) {
 				try {
 					String library = prefix + resource.getFilename();
-					if (library.endsWith(".dll")) {
-						NativeUtils.loadLibraryFromJar(library);
-					}
-				} catch (IOException | NoSuchFieldException | SecurityException | IllegalArgumentException
-						| IllegalAccessException e) {
+					NativeUtils.loadLibraryFromJar(library);
+				} catch (Exception e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}

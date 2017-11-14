@@ -28,6 +28,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -113,8 +114,10 @@ public class NativeUtils {
 		try (InputStream is = NativeUtils.class.getResourceAsStream(path)) {
 			Files.copy(is, temp.toPath(), StandardCopyOption.REPLACE_EXISTING);
 		} catch (IOException e) {
-			temp.delete();
-			throw e;
+			if (!(e instanceof AccessDeniedException)) {
+				temp.delete();
+				throw e;
+			}
 		} catch (NullPointerException e) {
 			temp.delete();
 			throw new FileNotFoundException("File " + path + " was not found inside JAR.");
@@ -129,7 +132,7 @@ public class NativeUtils {
 		// check if the path to add is already present
 		for (String string : paths) {
 			if (string.equals(temporaryDir.getAbsolutePath())) {
-				return;
+				break;
 			}
 		}
 
@@ -141,10 +144,9 @@ public class NativeUtils {
 		try {
 			if (filename.endsWith(".dll")) {
 				System.loadLibrary(filename.substring(0, filename.length() - 4));
-			} else {
-				System.load(filename);
+			} else if (filename.endsWith(".so")) {
+				System.loadLibrary(filename.substring(0, filename.length() - 3));
 			}
-
 		} finally {
 			if (isPosixCompliant()) {
 				// Assume POSIX compliant file system, can be deleted after
